@@ -1,0 +1,105 @@
+global:
+  imageRegistry: "us-docker.pkg.dev/[PROJECT_ID]/main"
+  storageClass: premium-rwo-retain-zonal-pg
+
+  postgresql:
+    password: ""
+    database: ""
+
+postgresql-ha:
+  postgresql:
+    image:
+      repository: bitnami/postgresql-repmgr
+      tag: 15.2.0-debian-11-r0
+    replicaCount: 3
+    nodeAffinityPreset:
+      type: "soft"
+      key: "cloud.google.com/compute-class"
+      operator: In
+      values:
+        - Scale-Out
+    podAntiAffinityPreset: "hard"
+    topologySpreadConstraints:
+      - topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: DoNotSchedule
+        maxSkew: 1
+    tolerations:
+      - key: "app.stateful/component"
+        operator: "Equal"
+        value: "postgresql"
+        effect: NoSchedule
+    nodeSelector:
+      app.stateful/component: "postgresql"
+      iam.gke.io/gke-metadata-server-enabled: "true"
+    pdb:
+      create: true
+      minAvailable: "" # keep this to mitigate the bug of helm chart: minAvailable and maxUnavailable cannot be both set
+      maxUnavailable: 1
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "0.5Gi"
+      limits:
+        cpu: "500m"
+        memory: "0.5Gi"
+  pgpool:
+    image:
+      repository: bitnami/pgpool
+      tag: 4.3.3-debian-11-r28
+    replicaCount: 1
+    tolerations:
+      - key: "app.stateful/component"
+        operator: "Equal"
+        value: "postgresql-pgpool"
+        effect: NoSchedule
+    nodeSelector:
+      app.stateful/component: "postgresql-pgpool"
+      iam.gke.io/gke-metadata-server-enabled: "true"
+    priorityClassName: "balloon-popper-priority"
+    pdb:
+      create: true
+      minAvailable: 1
+      maxUnavailable: 0 # keep this to mitigate the bug of helm chart: minAvailable and maxUnavailable cannot be both set
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "0.5Gi"
+      limits:
+        cpu: "500m"
+        memory: "0.5Gi"
+  metrics:
+    enabled: true
+    image:
+      repository: bitnami/postgres-exporter
+      tag: 0.11.1-debian-11-r27
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "0.5Gi"
+      limits:
+        cpu: "500m"
+        memory: "0.5Gi"
+  serviceAccount:
+    create: true
+    name: "postgres-sa"
+    annotations:
+      iam.gke.io/gcp-service-account: ""
+gkeBackup:
+  enabled: true
+  protectedApplications:
+    - name: postgresql-ha
+      components:
+        - name: postgresql
+          resourceKind: StatefulSet
+          resourceNames: ["postgresql-postgresql-ha-postgresql"]
+          strategy:
+            type: BackupAllRestoreAll
+            backupAllRestoreAll: {}
+storageClass:
+  create: true
+  name: premium-rwo-retain-zonal-pg
+  parameters:
+    type: pd-ssd
+
+podMonitoring:
+  enabled: true

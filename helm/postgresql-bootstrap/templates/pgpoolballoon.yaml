@@ -1,0 +1,63 @@
+apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
+kind: Deployment
+metadata:
+  name: {{ include "postgresql-ha.pgpool" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{ include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: pgpool
+    {{- if (index .Values "postgresql-ha" "pgpool" "labels") }}
+    {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "labels") "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgpool
+  template:
+    metadata:
+      labels: {{ include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: pgpool
+        {{- if (index .Values "postgresql-ha" "pgpool" "podLabels") }}
+        {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "podLabels") "context" $) | nindent 8 }}
+        {{- end }}
+      {{- if (index .Values "postgresql-ha" "pgpool" "podAnnotations") }}
+      annotations: {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "podAnnotations") "context" $) | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if (index .Values "postgresql-ha" "pgpool" "affinity") }}
+      affinity: {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "affinity") "context" $) | nindent 8 }}
+      {{- else }}
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" (index .Values "postgresql-ha" "pgpool" "podAffinityPreset") "component" "pgpool" "context" $) | nindent 10 }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: postgresql
+                  app.kubernetes.io/component: pgpool
+              topologyKey: topology.kubernetes.io/zone
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" (index .Values "postgresql-ha" "pgpool" "nodeAffinityPreset" "type") "key" (index .Values "postgresql-ha" "pgpool" "nodeAffinityPreset" "key") "values" (index .Values "postgresql-ha" "pgpool" "nodeAffinityPreset" "values")) | nindent 10 }}
+      {{- end }}
+      {{- if (index .Values "postgresql-ha" "pgpool" "nodeSelector") }}
+      nodeSelector: {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "nodeSelector") "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if (index .Values "postgresql-ha" "pgpool" "tolerations") }}
+      tolerations: {{- include "common.tplvalues.render" (dict "value" (index .Values "postgresql-ha" "pgpool" "tolerations") "context" $) | nindent 8 }}
+      {{- end }}
+      priorityClassName: balloon-priority
+      containers:
+      - name: pgpool
+        image: busybox:latest
+        command:
+            - "/bin/sh"
+            - "-c"
+            - "while true; do sleep 3600; done"
+        {{- if (index .Values "postgresql-ha" "pgpool" "resources") }}
+        resources: {{- toYaml (index .Values "postgresql-ha" "pgpool" "resources") | nindent 12 }}
+        {{- end }}

@@ -1,0 +1,19 @@
+{{- if .Values.storageClass.create }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storageClass.name }}
+  labels: {{- include "postgresql-bootstrap.labels" . | nindent 4 }}
+{{- if .Values.storageClass.parameters }}
+parameters:
+{{- range $key, $value := .Values.storageClass.parameters }}
+  {{ $key }}: {{ $value }}
+  {{- end }}
+{{- end }}
+{{- if .Values.storageClass.allowVolumeExpansion }}
+allowVolumeExpansion: {{ .Values.storageClass.allowVolumeExpansion }}
+{{- end }}
+provisioner: {{ .Values.storageClass.provisioner | default "pd.csi.storage.gke.io" }}
+reclaimPolicy: {{ .Values.storageClass.reclaimPolicy | default "Retain" }}
+volumeBindingMode: {{ .Values.storageClass.volumeBindingMode | default "WaitForFirstConsumer" }}
+{{- end }}

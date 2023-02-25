@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prepare-three-zone-ha
+  labels:
+    app: prepare-three-zone-ha
+    app.kubernetes.io/name: postgresql-ha
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prepare-three-zone-ha
+      app.kubernetes.io/name: postgresql-ha
+  template:
+    metadata:
+      labels:
+        app: prepare-three-zone-ha
+        app.kubernetes.io/name: postgresql-ha
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - prepare-three-zone-ha
+            topologyKey: "topology.kubernetes.io/zone"
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: cloud.google.com/compute-class
+                operator: In
+                values:
+                - "Scale-Out"
+            weight: 1
+      nodeSelector:
+        app.stateful/component: postgresql
+      tolerations:
+      - effect: NoSchedule
+        key: app.stateful/component
+        operator: Equal
+        value: postgresql
+      containers:
+      - name: prepare-three-zone-ha
+        image: busybox:latest
+        command:
+            - "/bin/sh"
+            - "-c"
+            - "while true; do sleep 3600; done"
+        resources:
+          limits:
+            cpu: "500m"
+            ephemeral-storage: "10Mi"
+            memory: "0.5Gi"
+          requests:
+            cpu: "500m"
+            ephemeral-storage: "10Mi"
+            memory: "0.5Gi"
